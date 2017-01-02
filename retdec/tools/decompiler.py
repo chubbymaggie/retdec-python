@@ -1,6 +1,6 @@
 #
 # Project:   retdec-python
-# Copyright: (c) 2015 by Petr Zemek <s3rvac@gmail.com> and contributors
+# Copyright: (c) 2015-2016 by Petr Zemek <s3rvac@gmail.com> and contributors
 # License:   MIT, see the LICENSE file for more details
 #
 # The progress displayers are based on the following script:
@@ -23,7 +23,7 @@
 #     in all copies or substantial portions of the Software.
 #
 
-"""A tool for decompiling files. It uses the library."""
+"""A tool for decompilation of files. It uses the library."""
 
 import abc
 import argparse
@@ -31,6 +31,9 @@ import os
 import sys
 
 from retdec.decompiler import Decompiler
+from retdec.exceptions import ArchiveGenerationFailedError
+from retdec.exceptions import CFGGenerationFailedError
+from retdec.exceptions import CGGenerationFailedError
 from retdec.tools import _add_arguments_shared_by_all_tools
 
 
@@ -45,6 +48,13 @@ class ProgressDisplayer(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def display_download_progress(self, file_name):
         """Displays progress of downloading file with the given name."""
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def display_generation_failure(self, what, reason):
+        """Displays a warning message that `what` failed to be generated
+        because of `reason`.
+        """
         raise NotImplementedError
 
     def __repr__(self):
@@ -96,11 +106,16 @@ class ProgressBarDisplayer(ProgressDisplayer):
         # Do not display anything.
         pass
 
+    def display_generation_failure(self, what, reason):
+        # Do not display anything.
+        pass
+
 
 class ProgressLogDisplayer(ProgressDisplayer):
     """Displays a progress log during decompilation."""
 
     def __init__(self):
+        self._phases = []
         self._last_part = None
         self._last_phase_index = 0
         self._prologue_printed = False
@@ -112,28 +127,28 @@ class ProgressLogDisplayer(ProgressDisplayer):
         #    8DRerEdKop
         #    ----------
         #
-        #    Waiting for resources (0%)...                   [OK]
+        #    Waiting for resources (0%)...                 [OK]
         #    Pre-Processing:
-        #        Obtaining file information (5%)...          [OK]
+        #      Obtaining file information (5%)...          [OK]
         #    Front-End:
-        #        Initializing (20%)...                       [OK]
-        #        Creating instruction decoders (22%)...      [OK]
-        #        Detecting statically linked code (25%)...   [OK]
-        #        Instruction decoding (28%)...               [OK]
-        #        Control-flow analysis (31%)...              [OK]
-        #        Data-flow analysis (34%)...                 [OK]
-        #        Type recovery (37%)...                      [OK]
-        #        Generating LLVM IR (40%)...                 [OK]
+        #      Initializing (20%)...                       [OK]
+        #      Creating instruction decoders (22%)...      [OK]
+        #      Detecting statically linked code (25%)...   [OK]
+        #      Instruction decoding (28%)...               [OK]
+        #      Control-flow analysis (31%)...              [OK]
+        #      Data-flow analysis (34%)...                 [OK]
+        #      Type recovery (37%)...                      [OK]
+        #      Generating LLVM IR (40%)...                 [OK]
         #    Middle-End:
-        #        Initializing (45%)...                       [OK]
-        #        Validating the LLVM IR (50%)...             [OK]
-        #        Optimizing the LLVM IR (55%)...             [OK]
+        #      Initializing (45%)...                       [OK]
+        #      Validating the LLVM IR (50%)...             [OK]
+        #      Optimizing the LLVM IR (55%)...             [OK]
         #    Back-End:
-        #        Initializing (60%)...                       [OK]
-        #        Converting the LLVM IR into BIR (65%)...    [OK]
-        #        Optimizing the BIR (70%)...                 [OK]
-        #        Validating the BIR (90%)...                 [OK]
-        #        Generating the target code (95%)...         [OK]
+        #      Initializing (60%)...                       [OK]
+        #      Converting the LLVM IR into BIR (65%)...    [OK]
+        #      Optimizing the BIR (70%)...                 [OK]
+        #      Validating the BIR (90%)...                 [OK]
+        #      Generating the target code (95%)...         [OK]
         #    Done (100%)...
         #
 
@@ -143,6 +158,7 @@ class ProgressLogDisplayer(ProgressDisplayer):
 
         if d.has_finished():
             self._print_decompilation_end(d)
+            self._print_warnings_in_last_phase()
 
         # Make the output available as soon as possible.
         sys.stdout.flush()
@@ -162,15 +178,16 @@ class ProgressLogDisplayer(ProgressDisplayer):
 
     def _get_new_phases(self, d):
         """Returns new phases from the given decompilation."""
-        phases = d.get_phases()
-        return phases[self._last_phase_index:]
+        self._phases = d.get_phases()
+        return self._phases[self._last_phase_index:]
 
     def _print_phases(self, phases):
         """Prints the given phases."""
         for phase in phases:
-            # Print status for the last phase (if any).
+            # Print status and warnings for the last phase (if any).
             if self._last_phase_index > 0:
                 self._print_end_of_successful_phase()
+                self._print_warnings_in_last_phase()
             self._print_phase(phase)
             self._last_part = phase.part
             self._last_phase_index += 1
@@ -183,12 +200,13 @@ class ProgressLogDisplayer(ProgressDisplayer):
             if phase.part != self._last_part:
                 # Entering a new part.
                 sys.stdout.write('{}:\n'.format(phase.part))
-            phase_str += '    '
+            phase_str += '  '
 
         phase_str += '{} ({}%)...'.format(phase.description, phase.completion)
 
         # Print the phase in an aligned way so the status can be printed
-        # afterwards.
+        # afterwards. The number below has been chosen experimentally based on
+        # the longest phase string that we can have.
         sys.stdout.write('{0:<50} '.format(phase_str))
 
     def _print_decompilation_end(self, d):
@@ -212,6 +230,21 @@ class ProgressLogDisplayer(ProgressDisplayer):
         """Prints the end of the current phase."""
         sys.stdout.write('[{}]\n'.format(status))
 
+    def _print_warnings_in_last_phase(self):
+        """Prints warnings from the last phase (if any)."""
+        if self._last_phase_index:
+            last_phase = self._phases[self._last_phase_index - 1]
+            self._print_warnings_in_phase(last_phase)
+
+    def _print_warnings_in_phase(self, phase):
+        """Prints warnings from the given phase (if any)."""
+        for warning in phase.warnings:
+            self._print_warning(warning)
+
+    def _print_warning(self, warning):
+        """Prints the given warning."""
+        sys.stdout.write('Warning: {}\n'.format(warning))
+
     def display_download_progress(self, file_name):
         # Example:
         #
@@ -223,6 +256,18 @@ class ProgressLogDisplayer(ProgressDisplayer):
         self._print_download_header_unless_already_printed()
 
         sys.stdout.write(' - {}\n'.format(file_name))
+
+        # Make the output available as soon as possible.
+        sys.stdout.flush()
+
+    def display_generation_failure(self, what, reason):
+        # Example:
+        #
+        #   Warning: Generation of the archive failed: Archive is too big.
+        #
+        self._print_warning(
+            'Generation of the {} failed: {}'.format(what, reason)
+        )
 
         # Make the output available as soon as possible.
         sys.stdout.flush()
@@ -245,6 +290,9 @@ class NoProgressDisplayer(ProgressDisplayer):
     def display_download_progress(self, file):
         pass
 
+    def display_generation_failure(self, what, reason):
+        pass
+
 
 def parse_args(argv):
     """Parses the given list of arguments."""
@@ -263,39 +311,211 @@ def parse_args(argv):
     )
     _add_arguments_shared_by_all_tools(parser)
     parser.add_argument(
+        '-a', '--architecture',
+        dest='architecture',
+        metavar='ARCH',
+        choices=['x86', 'arm', 'thumb', 'mips', 'pic32', 'powerpc'],
+        help='Architecture to force when (de)compiling. Choices: %(choices)s.'
+    )
+    parser.add_argument(
         '-b', '--brief',
         dest='brief',
         action='store_true',
-        help='print fewer information during the decompilation'
+        help='Print fewer information during the decompilation.'
+    )
+    parser.add_argument(
+        '-c', '--compiler',
+        dest='comp_compiler',
+        metavar='COMPILER',
+        choices=['gcc', 'clang'],
+        help='Compiler to be used when compiling. '
+             'Choices: %(choices)s. Default: gcc.'
+    )
+    parser.add_argument(
+        '-C', '--compiler-optimizations',
+        dest='comp_optimizations',
+        metavar='LEVEL',
+        choices=['O0', 'O1', 'O2', 'O3'],
+        help='Compiler optimizations to be used when compiling. '
+             'Choices: %(choices)s. Default: O2.'
+    )
+    parser.add_argument(
+        '-g', '--compiler-debug',
+        dest='comp_debug',
+        action='store_true',
+        default=None,
+        help='Compile the input C file with debugging information.'
+    )
+    parser.add_argument(
+        '-s', '--compiler-strip',
+        dest='comp_strip',
+        action='store_true',
+        default=None,
+        help='Strip the compiled C file prior its decompilation.'
+    )
+    parser.add_argument(
+        '-f', '--file-format',
+        dest='file_format',
+        metavar='FORMAT',
+        choices=['elf', 'pe'],
+        help='File format to force when compiling C source code. '
+             'Choices: %(choices)s. Default: elf.'
+    )
+    parser.add_argument(
+        '--endian',
+        dest='endian',
+        metavar='ENDIAN',
+        choices=['little', 'big'],
+        help='Endianness of the machine code (bin and raw modes only). '
+             'Choices: %(choices)s. Default: little.'
+    )
+    parser.add_argument(
+        '-l', '--target-language',
+        dest='target_language',
+        metavar='LANGUAGE',
+        choices=['c', 'py'],
+        help='Target high-level language. '
+             'Choices: %(choices)s. Default: c.'
+    )
+    parser.add_argument(
+        '--graph-format',
+        dest='graph_format',
+        metavar='FORMAT',
+        choices=['png', 'svg', 'pdf'],
+        help='Format of the generated call and control-flow graphs.'
+             'Choices: %(choices)s. Default: png.'
     )
     parser.add_argument(
         '-m', '--mode',
         dest='mode',
-        choices={'c', 'bin'},
-        help='decompilation mode (default: automatic detection)'
+        metavar='MODE',
+        choices=['c', 'bin', 'raw'],
+        help='Decompilation mode. '
+             'Choices: %(choices)s. Default: automatic detection.'
     )
     parser.add_argument(
         '-o', '--output-dir',
         dest='output_dir',
         metavar='DIR',
-        help='save the outputs into this directory'
+        help='Save the outputs into this directory.'
+    )
+    parser.add_argument(
+        '-p', '--pdb-file',
+        dest='pdb_file',
+        metavar='FILE',
+        help='PDB file associated with the input file.'
     )
     parser.add_argument(
         '-q', '--quiet',
         dest='quiet',
         action='store_true',
-        help='print only errors, nothing else (not even progress)'
+        help='Print only errors, nothing else (not even progress).'
+    )
+    parser.add_argument(
+        '--var-names',
+        dest='decomp_var_names',
+        metavar='STYLE',
+        choices=['readable', 'address', 'hungarian', 'simple', 'unified'],
+        help='Naming style for variables. '
+             'Choices: %(choices)s. Default: readable.'
+    )
+    parser.add_argument(
+        '-O', '--optimizations',
+        dest='decomp_optimizations',
+        metavar='LEVEL',
+        choices=['none', 'limited', 'normal', 'aggressive'],
+        help='Level of optimizations performed by the decompiler. '
+             'Choices: %(choices)s. Default: normal.'
+    )
+    parser.add_argument(
+        '-K', '--keep-unreach-funcs',
+        dest='decomp_unreach_funcs',
+        action='store_true',
+        default=None,
+        help='Decompile all functions, even if they are not reachable.'
+    )
+    parser.add_argument(
+        '--no-addresses',
+        dest='decomp_emit_addresses',
+        action='store_false',
+        default=None,
+        help='Disable the emission of addresses in comments in the generated code.'
+    )
+    parser.add_argument(
+        '--only-funcs',
+        dest='sel_decomp_funcs',
+        metavar='FUNCS',
+        help='Decompile only the given functions (a comma-separated '
+             'list of function names, e.g. func1,func2).'
+    )
+    parser.add_argument(
+        '--only-ranges',
+        dest='sel_decomp_ranges',
+        metavar='RANGES',
+        help='Decompile only the given address ranges (a comma-separated '
+             'list of address ranges, e.g. 0x100-0x200,0x500-0x600).'
+    )
+    parser.add_argument(
+        '--decoding',
+        dest='sel_decomp_decoding',
+        metavar='TYPE',
+        choices=['everything', 'only'],
+        help='What should be decoded in a selective decompilation? '
+             'Choices: %(choices)s. Default: everything.'
+    )
+    parser.add_argument(
+        '--raw-entry-point',
+        dest='raw_entry_point',
+        metavar='ADDRESS',
+        help='Virtual memory address where execution flow should start '
+             'in the machine code (raw mode only).'
+    )
+    parser.add_argument(
+        '--raw-section-vma',
+        dest='raw_section_vma',
+        metavar='ADDRESS',
+        help='Address where the section created from the machine '
+             'code will be placed in virtual memory (raw mode only).'
+    )
+    parser.add_argument(
+        '--ar-index',
+        dest='ar_index',
+        metavar='INDEX',
+        help='Index of the object file in the input archive to be '
+             'decompiled when decompiling an archive.'
+    )
+    parser.add_argument(
+        '--ar-name',
+        dest='ar_name',
+        metavar='NAME',
+        help='Name of the object file in the input archive to be '
+             'decompiled when decompiling an archive.'
+    )
+    parser.add_argument(
+        '--with-cg',
+        dest='generate_cg',
+        action='store_true',
+        default=None,
+        help='Generate a call graph.'
+    )
+    parser.add_argument(
+        '--with-cfgs',
+        dest='generate_cfgs',
+        action='store_true',
+        default=None,
+        help='Generate call graphs for all functions.'
     )
     parser.add_argument(
         '--with-archive',
         dest='generate_archive',
         action='store_true',
-        help='generate an archive containing all decompilation outputs'
+        default=None,
+        help='Generate an archive containing all decompilation outputs.'
     )
     parser.add_argument(
         'input_file',
         metavar='FILE',
-        help='file to decompile'
+        help='File to decompile.'
     )
     return parser.parse_args(argv[1:])
 
@@ -328,6 +548,26 @@ def display_download_progress(displayer, file_path):
     displayer.display_download_progress(os.path.basename(file_path))
 
 
+def add_decompilation_param_when_given(args, params, param_name):
+    """Adds a parameter with `param_name` from `args` to `params`, provided
+    that the parameter is set.
+    """
+    param_value = getattr(args, param_name)
+    if param_value is not None:
+        params[param_name] = param_value
+
+
+def should_download_output_binary_file(args):
+    """Should the compiled version of the input C file be downloaded?
+    """
+    # It should be downloaded only when we are decompiling a C file.
+    if args.mode == 'c':
+        return True
+    elif not args.mode and args.input_file.lower().endswith('c'):
+        return True
+    return False
+
+
 def main(argv=None):
     """Runs the tool.
 
@@ -342,11 +582,34 @@ def main(argv=None):
         api_key=args.api_key
     )
 
-    decompilation = decompiler.start_decompilation(
-        input_file=args.input_file,
-        mode=args.mode,
-        generate_archive=args.generate_archive
-    )
+    params = {}
+    add_decompilation_param_when_given(args, params, 'input_file')
+    add_decompilation_param_when_given(args, params, 'pdb_file')
+    add_decompilation_param_when_given(args, params, 'mode')
+    add_decompilation_param_when_given(args, params, 'target_language')
+    add_decompilation_param_when_given(args, params, 'graph_format')
+    add_decompilation_param_when_given(args, params, 'architecture')
+    add_decompilation_param_when_given(args, params, 'file_format')
+    add_decompilation_param_when_given(args, params, 'comp_compiler')
+    add_decompilation_param_when_given(args, params, 'comp_optimizations')
+    add_decompilation_param_when_given(args, params, 'comp_debug')
+    add_decompilation_param_when_given(args, params, 'comp_strip')
+    add_decompilation_param_when_given(args, params, 'decomp_var_names')
+    add_decompilation_param_when_given(args, params, 'decomp_optimizations')
+    add_decompilation_param_when_given(args, params, 'decomp_unreach_funcs')
+    add_decompilation_param_when_given(args, params, 'decomp_emit_addresses')
+    add_decompilation_param_when_given(args, params, 'sel_decomp_funcs')
+    add_decompilation_param_when_given(args, params, 'sel_decomp_ranges')
+    add_decompilation_param_when_given(args, params, 'sel_decomp_decoding')
+    add_decompilation_param_when_given(args, params, 'endian')
+    add_decompilation_param_when_given(args, params, 'raw_entry_point')
+    add_decompilation_param_when_given(args, params, 'raw_section_vma')
+    add_decompilation_param_when_given(args, params, 'ar_index')
+    add_decompilation_param_when_given(args, params, 'ar_name')
+    add_decompilation_param_when_given(args, params, 'generate_cg')
+    add_decompilation_param_when_given(args, params, 'generate_cfgs')
+    add_decompilation_param_when_given(args, params, 'generate_archive')
+    decompilation = decompiler.start_decompilation(**params)
 
     displayer = get_progress_displayer(args)
     displayer.display_decompilation_progress(decompilation)
@@ -362,10 +625,36 @@ def main(argv=None):
     file_path = decompilation.save_dsm_code(output_dir)
     display_download_progress(displayer, file_path)
 
-    if args.generate_archive:
-        decompilation.wait_until_archive_is_generated()
-        file_path = decompilation.save_archive(output_dir)
+    if should_download_output_binary_file(args):
+        file_path = decompilation.save_binary(output_dir)
         display_download_progress(displayer, file_path)
+
+    if args.generate_cg:
+        try:
+            decompilation.wait_until_cg_is_generated()
+            file_path = decompilation.save_cg(output_dir)
+            display_download_progress(displayer, file_path)
+        except CGGenerationFailedError as ex:
+            displayer.display_generation_failure('call graph', str(ex))
+
+    if args.generate_cfgs:
+        for func in decompilation.funcs_with_cfg:
+            try:
+                decompilation.wait_until_cfg_is_generated(func)
+                file_path = decompilation.save_cfg(func, output_dir)
+                display_download_progress(displayer, file_path)
+            except CFGGenerationFailedError as ex:
+                displayer.display_generation_failure(
+                    'control-flow graph for {}'.format(func), str(ex)
+                )
+
+    if args.generate_archive:
+        try:
+            decompilation.wait_until_archive_is_generated()
+            file_path = decompilation.save_archive(output_dir)
+            display_download_progress(displayer, file_path)
+        except ArchiveGenerationFailedError as ex:
+            displayer.display_generation_failure('archive', str(ex))
 
     return 0
 

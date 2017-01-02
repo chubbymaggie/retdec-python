@@ -25,7 +25,7 @@ or set the ``RETDEC_API_KEY`` environment variable:
 
     $ export RETDEC_API_KEY=YOUR-API-KEY
 
-The advantage of the environment variable is that you do not need to specify the API key every time you use the library:
+An advantage of the environment variable is that you do not need to specify the API key every time you use the library:
 
 .. code-block:: python
 
@@ -34,7 +34,7 @@ The advantage of the environment variable is that you do not need to specify the
 Error Handling
 --------------
 
-The library uses exceptions to signalize errors. Every custom exception raised by the library inherits from :class:`retdec.exceptions.RetdecError`, which you can use to catch any custom exception raised by the library:
+The library uses exceptions to signalize errors. The base class is :class:`retdec.exceptions.RetdecError`, which you can use to catch all custom exceptions raised by the library:
 
 .. code-block:: python
 
@@ -43,12 +43,12 @@ The library uses exceptions to signalize errors. Every custom exception raised b
     except retdec.exceptions.RetdecError as ex:
         # Handle the error.
 
-See the :mod:`retdec.exceptions` module for a list of all custom exceptions.
+You can also catch specific exceptions, e.g. :class:`retdec.exceptions.AuthenticationError`, and react on them. See the :mod:`retdec.exceptions` module for a list of all custom exceptions.
 
 Decompiler
 ----------
 
-The :mod:`retdec.decompiler` module provides access to the `decompilation service <https://retdec.com/api/docs/fileinfo.html>`_. It allows you to decompile binary files into a high-level language representation, such as C.
+The :mod:`retdec.decompiler` module provides access to the `decompilation service <https://retdec.com/api/docs/decompiler.html>`_. It allows you to decompile binary files into a high-level language representation, such as C.
 
 Creating a Decompiler
 ^^^^^^^^^^^^^^^^^^^^^
@@ -62,7 +62,7 @@ The decompiler is represented by the :class:`retdec.decompiler.Decompiler` class
 Starting a Decompilation
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-To start a decompilation of a file, call :func:`~retdec.decompiler.Decompiler.start_decompilation()`:
+To start a decompilation of a file, call :func:`~retdec.decompiler.Decompiler.start_decompilation()` on the created decompiler:
 
 .. code-block:: python
 
@@ -109,7 +109,7 @@ Alternatively, you can call :func:`~retdec.decompilation.Decompilation.save_hll_
 
     decompilation.save_hll_code('/home/user/downloads')
 
-Apart from obtaining the HLL code, you can also get the disassembled code. See the description of :class:`~retdec.decompilation.Decompilation` for more details.
+Apart from obtaining the HLL code, you can also get the disassembled code, control-flow graphs, call graph, archive with all the outputs or, in the ``c`` mode, the compiled version of the input C file. See the description of :class:`~retdec.decompilation.Decompilation` for more details.
 
 For a complete example, take a look the `retdec/tools/decompiler.py <https://github.com/s3rvac/retdec-python/blob/master/retdec/tools/decompiler.py>`_ file. It is an implementation of the :ref:`decompiler` script.
 
@@ -130,13 +130,16 @@ The analyzer is represented by the :class:`retdec.fileinfo.Fileinfo` class:
 Starting an Analysis
 ^^^^^^^^^^^^^^^^^^^^
 
-To start an analysis of a file, call :func:`~retdec.fileinfo.Fileinfo.start_analysis()` with a file to be analyzed:
+To start an analysis of a file, call :func:`~retdec.fileinfo.Fileinfo.start_analysis()` on the created analyzer with a file to be analyzed:
 
 .. code-block:: python
 
     analysis = fileinfo.start_analysis(input_file=FILE)
 
-``FILE`` is either a path to the file or a file-like object. Optionally, you can pass the ``verbose=True`` argument, which makes the analysis to obtain all available information about the file.
+``FILE`` is either a path to the file or a file-like object. Optionally, you can pass the following parameters:
+
+* ``verbose=True`` -- makes the analysis obtain all available information about the file.
+* ``output_format=json`` -- causes the output from the analysis to be in the `JSON <https://en.wikipedia.org/wiki/JSON>`_ format instead of in the plain format.
 
 The returned object is an instance of :class:`retdec.analysis.Analysis`.
 
@@ -178,3 +181,14 @@ To check whether you can authenticate successfully, use :func:`retdec.test.Test.
         print('authentication succeeded')
     except retdec.exceptions.AuthenticationError as ex:
         print('authentication failed:', ex)
+
+Parameter Passing
+^^^^^^^^^^^^^^^^^
+
+To check that parameters are passed correctly when performing requests to the `retdec.com API <https://retdec.com/api/>`_, use :func:`retdec.test.Test.echo()`:
+
+.. code-block:: python
+
+    test = retdec.test.Test(api_key='YOUR-API-KEY')
+    result = test.echo(param='value')
+    print(result)  # Prints {'param': 'value'}.

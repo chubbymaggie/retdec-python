@@ -1,6 +1,6 @@
 #
 # Project:   retdec-python
-# Copyright: (c) 2015 by Petr Zemek <s3rvac@gmail.com> and contributors
+# Copyright: (c) 2015-2016 by Petr Zemek <s3rvac@gmail.com> and contributors
 # License:   MIT, see the LICENSE file for more details
 #
 
@@ -20,10 +20,6 @@ from retdec.exceptions import UnknownAPIError
 from tests import mock
 from tests.matchers import AnyDictWith
 from tests.matchers import Anything
-
-
-class AnyURL(Anything):
-    """A matcher that matches any URL."""
 
 
 class AnyParams(Anything):
@@ -320,6 +316,7 @@ class APIConnectionTests(unittest.TestCase):
 
     def test_repr_returns_correct_value(self):
         conn = APIConnection('https://retdec.com/service/api', 'KEY')
+
         self.assertEqual(
             repr(conn),
             "<retdec.conn.APIConnection base_url='https://retdec.com/service/api'>"

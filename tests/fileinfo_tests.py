@@ -1,11 +1,12 @@
 #
 # Project:   retdec-python
-# Copyright: (c) 2015 by Petr Zemek <s3rvac@gmail.com> and contributors
+# Copyright: (c) 2015-2016 by Petr Zemek <s3rvac@gmail.com> and contributors
 # License:   MIT, see the LICENSE file for more details
 #
 
 """Tests for the :mod:`retdec.fileinfo` module."""
 
+from retdec.exceptions import MissingParameterError
 from retdec.file import File
 from retdec.fileinfo import Fileinfo
 from tests import mock
@@ -23,6 +24,7 @@ class FileinfoTests(BaseServiceTests):
             api_key='API-KEY',
             api_url='https://retdec.com/service/api/'
         )
+
         self.assertEqual(
             repr(fileinfo),
             "<retdec.fileinfo.Fileinfo api_url='https://retdec.com/service/api'>"
@@ -54,14 +56,11 @@ class FileinfoStartAnalysisTests(BaseServiceTests):
             files=AnyFilesWith(input=AnyFileNamed(self.input_file.name))
         )
 
-    def test_verbose_is_set_to_flase_when_not_given(self):
-        self.fileinfo.start_analysis(input_file=self.input_file)
+    def test_raises_exception_when_input_file_is_not_given(self):
+        with self.assertRaises(MissingParameterError):
+            self.fileinfo.start_analysis()
 
-        self.assert_post_request_was_sent_with(
-            params=AnyParamsWith(verbose=False)
-        )
-
-    def test_verbose_is_set_to_False_when_given_but_false(self):
+    def test_verbose_is_set_to_false_when_given_as_false(self):
         self.fileinfo.start_analysis(
             input_file=self.input_file,
             verbose=False
@@ -71,7 +70,7 @@ class FileinfoStartAnalysisTests(BaseServiceTests):
             params=AnyParamsWith(verbose=False)
         )
 
-    def test_verbose_is_set_to_true_when_given_and_true(self):
+    def test_verbose_is_set_to_true_when_given_as_true(self):
         self.fileinfo.start_analysis(
             input_file=self.input_file,
             verbose=True
@@ -79,6 +78,16 @@ class FileinfoStartAnalysisTests(BaseServiceTests):
 
         self.assert_post_request_was_sent_with(
             params=AnyParamsWith(verbose=True)
+        )
+
+    def test_output_format_is_set_when_given(self):
+        self.fileinfo.start_analysis(
+            input_file=self.input_file,
+            output_format='json'
+        )
+
+        self.assert_post_request_was_sent_with(
+            params=AnyParamsWith(output_format='json')
         )
 
     def test_uses_returned_id_to_initialize_analysis(self):

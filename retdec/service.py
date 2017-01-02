@@ -1,6 +1,6 @@
 #
 # Project:   retdec-python
-# Copyright: (c) 2015 by Petr Zemek <s3rvac@gmail.com> and contributors
+# Copyright: (c) 2015-2016 by Petr Zemek <s3rvac@gmail.com> and contributors
 # License:   MIT, see the LICENSE file for more details
 #
 
@@ -15,13 +15,13 @@ from retdec.exceptions import MissingAPIKeyError
 
 
 class Service:
-    """Base class of all services."""
+    """Base class of all services.
+
+    :param str api_key: API key to be used for authentication.
+    :param str api_url: URL to the API.
+    """
 
     def __init__(self, *, api_key=None, api_url=None):
-        """
-        :param str api_key: API key to be used for authentication.
-        :param str api_url: URL to the API.
-        """
         self._api_key = self._get_api_key_to_use(api_key)
         self._api_url = self._get_api_url_to_use(api_url)
 
@@ -46,13 +46,11 @@ class Service:
     def _get_api_key_to_use(api_key):
         """Returns an API key to be used based on the given key and environment
         variables.
-
-        :raises MissingAPIKeyError: When no API key is available.
         """
         if api_key is not None:
             return api_key
 
-        api_key = os.environ.get('RETDEC_API_KEY', None)
+        api_key = os.environ.get('RETDEC_API_KEY')
         if api_key is not None:
             return api_key
 
@@ -78,7 +76,7 @@ class Service:
         :param dict params: Parameters from which the value should be obtained.
         :param set choices: Allowed values for the parameter.
         :param object default: Default value to return when the parameter is
-                               not found.
+            not found.
         """
         if name not in params or params[name] is None:
             return default
@@ -89,3 +87,10 @@ class Service:
             raise InvalidValueError(name, value)
 
         return value
+
+    @staticmethod
+    def _add_param_when_given(param, params, kwargs):
+        """Adds `param` to `params` when given in `kwargs`."""
+        value = kwargs.get(param)
+        if value is not None:
+            params[param] = value

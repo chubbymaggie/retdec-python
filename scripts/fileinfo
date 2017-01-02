@@ -5,8 +5,8 @@
 # (https://github.com/s3rvac/retdec-python), which is assumed to be installed
 # and available for import.
 #
-# Copyright: (c) 2015 by Petr Zemek <s3rvac@gmail.com> and contributors
-# License: MIT, see the LICENSE file for more details
+# Copyright: (c) 2015-2016 by Petr Zemek <s3rvac@gmail.com> and contributors
+# License:   MIT, see the LICENSE file for more details
 #
 
 import sys
@@ -21,5 +21,5 @@ from retdec.tools import fileinfo
 try:
     sys.exit(fileinfo.main())
 except Exception as ex:
-    sys.stderr.write('error: {}\n'.format(str(ex)))
+    sys.stderr.write('Error: {}\n'.format(str(ex)))
     sys.exit(1)

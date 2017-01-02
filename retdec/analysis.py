@@ -1,10 +1,10 @@
 #
 # Project:   retdec-python
-# Copyright: (c) 2015 by Petr Zemek <s3rvac@gmail.com> and contributors
+# Copyright: (c) 2015-2016 by Petr Zemek <s3rvac@gmail.com> and contributors
 # License:   MIT, see the LICENSE file for more details
 #
 
-"""A representation of a fileinfo analysis."""
+"""A representation of fileinfo analyses."""
 
 from retdec.exceptions import AnalysisFailedError
 from retdec.resource import Resource
@@ -17,7 +17,7 @@ class Analysis(Resource):
         """Waits until the analysis is finished.
 
         :param callable on_failure: What should be done when the analysis
-                                    fails?
+            fails?
 
         If `on_failure` is ``None``, nothing is done when the analysis fails.
         Otherwise, it is called with the error message. If the returned value

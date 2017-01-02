@@ -1,6 +1,6 @@
 #
 # Project:   retdec-python
-# Copyright: (c) 2015 by Petr Zemek <s3rvac@gmail.com> and contributors
+# Copyright: (c) 2015-2016 by Petr Zemek <s3rvac@gmail.com> and contributors
 # License:   MIT, see the LICENSE file for more details
 #
 
@@ -23,6 +23,7 @@ class AnalysisTests(AnalysisTestsBase):
 
     def test_repr_returns_correct_value(self):
         a = Analysis('ID', self.conn)
+
         self.assertEqual(
             repr(a),
             "<retdec.analysis.Analysis id='ID'>"
@@ -104,6 +105,7 @@ class AnalysisGetOutputsTests(WithMockedIO, AnalysisTestsBase):
 
     def test_get_output_obtains_file_contents(self):
         a = Analysis('ID', self.conn)
+
         self.assert_obtains_file_contents(
             a.get_output,
             '/ID/output',

@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
 #
 # Project:   retdec-python
-# Copyright: (c) 2015 by Petr Zemek <s3rvac@gmail.com> and contributors
+# Copyright: (c) 2015-2016 by Petr Zemek <s3rvac@gmail.com> and contributors
 # License:   MIT, see the LICENSE file for more details
 #
 # A setuptools-based setup module for the project.
@@ -12,10 +11,12 @@ import os
 import re
 from setuptools import setup
 
+
 # Utility function to read the contents of the given file.
 def read_file(file_path):
     with open(file_path, encoding='utf-8') as f:
         return f.read()
+
 
 def get_project_version():
     # Based on:
@@ -30,6 +31,7 @@ def get_project_version():
         ).group(1)
     )
 
+
 setup(
     name='retdec-python',
     version=get_project_version(),
@@ -43,14 +45,14 @@ setup(
     url='https://github.com/s3rvac/retdec-python',
     license=read_file('LICENSE'),
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.2',
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy',
         'Topic :: Software Development :: Libraries :: Python Modules',

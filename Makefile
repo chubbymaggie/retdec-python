@@ -1,6 +1,6 @@
 #
 # Project:   retdec-python
-# Copyright: (c) 2015 by Petr Zemek <s3rvac@gmail.com> and contributors
+# Copyright: (c) 2015-2016 by Petr Zemek <s3rvac@gmail.com> and contributors
 # License:   MIT, see the LICENSE file for more details
 #
 # A GNU Makefile for the project.
@@ -37,7 +37,7 @@ docs-coverage:
 	@$(MAKE) -C docs coverage
 
 lint:
-	@flake8 --max-line-length=100 retdec tests
+	@flake8 --max-line-length=100 --jobs=auto retdec tests setup.py
 
 tests:
 	@nosetests tests \

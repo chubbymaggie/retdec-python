@@ -1,6 +1,6 @@
 #
 # Project:   retdec-python
-# Copyright: (c) 2015 by Petr Zemek <s3rvac@gmail.com> and contributors
+# Copyright: (c) 2015-2016 by Petr Zemek <s3rvac@gmail.com> and contributors
 # License:   MIT, see the LICENSE file for more details
 #
 
@@ -22,7 +22,10 @@ class MissingAPIKeyError(RetdecError):
 
 
 class MissingParameterError(RetdecError):
-    """Exception raised when a required parameter is not set."""
+    """Exception raised when a required parameter is not set.
+
+    :param str name: Name of the missing parameter.
+    """
 
     def __init__(self, name):
         super().__init__(
@@ -31,7 +34,11 @@ class MissingParameterError(RetdecError):
 
 
 class InvalidValueError(RetdecError):
-    """Exception raised when a parameter has an invalid value."""
+    """Exception raised when a parameter has an invalid value.
+
+    :param str name: Name of the parameter whose value is invalid.
+    :param value: The invalid value.
+    """
 
     def __init__(self, name, value):
         super().__init__(
@@ -51,34 +58,13 @@ class AuthenticationError(RetdecError):
 class ConnectionError(RetdecError):
     """Exception raised when there is a connection error."""
 
-    def __init__(self, reason=None):
-        message = _message_with_reason(
-            'Connection to the API failed.',
-            reason
-        )
-        super().__init__(message)
-
 
 class AnalysisFailedError(RetdecError):
     """Exception raised when a fileinfo analysis has failed."""
 
-    def __init__(self, reason=None):
-        message = _message_with_reason(
-            'The analysis has failed.',
-            reason
-        )
-        super().__init__(message)
-
 
 class DecompilationFailedError(RetdecError):
     """Exception raised when a decompilation has failed."""
-
-    def __init__(self, reason=None):
-        message = _message_with_reason(
-            'The decompilation has failed.',
-            reason
-        )
-        super().__init__(message)
 
 
 class OutputNotRequestedError(RetdecError):
@@ -92,44 +78,59 @@ class OutputNotRequestedError(RetdecError):
         )
 
 
+class CGGenerationFailedError(RetdecError):
+    """Exception raised when the generation of a call graph fails.
+    """
+
+
+class CFGGenerationFailedError(RetdecError):
+    """Exception raised when the generation of a control-flow graph fails."""
+
+
+class NoSuchCFGError(RetdecError):
+    """Exception raised when a control-flow graph for a non-existing function
+    is requested.
+
+    :param str func: Name of the function whose control-flow graph was
+        requested.
+    """
+
+    def __init__(self, func):
+        super().__init__(
+            "There is no control-flow graph for '{}'.".format(func)
+        )
+
+
 class ArchiveGenerationFailedError(RetdecError):
     """Exception raised when the generation of an archive fails."""
-
-    def __init__(self, reason=None):
-        message = _message_with_reason(
-            'The archive generation has failed.',
-            reason
-        )
-        super().__init__(message)
 
 
 class UnknownAPIError(RetdecError):
     """Exception raised when there is an unknown API error.
 
-    :ivar int code: Error code.
-    :ivar str message: Short message of what went wrong.
-    :ivar str description: Longer description of what went wrong.
+    :param int code: Error code.
+    :param str message: Short message describing what went wrong.
+    :param str description: Longer description of what went wrong.
     """
 
     def __init__(self, code, message, description):
-        """Initializes the exception.
-
-        :param int code: Error code.
-        :param str message: Short message describing what went wrong.
-        :param str description: Longer description of what went wrong.
-        """
         super().__init__(description)
 
-        self.code = code
-        self.message = message
-        self.description = description
+        self._code = code
+        self._message = message
+        self._description = description
 
+    @property
+    def code(self):
+        """Error code (`int`)."""
+        return self._code
 
-def _message_with_reason(message, reason):
-    """Returns `message` with `reason`.
+    @property
+    def message(self):
+        """Short message describing what went wrong (`str`)."""
+        return self._message
 
-    If `reason` is ``None``, it returns just `message`.
-    """
-    if reason is not None:
-        message += ' Reason: {}'.format(reason)
-    return message
+    @property
+    def description(self):
+        """Longer description of what went wrong (`str`)."""
+        return self._description

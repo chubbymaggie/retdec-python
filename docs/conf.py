@@ -43,14 +43,14 @@ templates_path = ['templates']
 source_suffix = '.rst'
 
 # The encoding of source files.
-#source_encoding = 'utf-8-sig'
+source_encoding = 'utf-8'
 
 # The master toctree document.
 master_doc = 'index'
 
 # General information about the project.
 project = 'retdec-python'
-copyright = '2015, Petr Zemek <s3rvac@gmail.com> and contributors'
+copyright = '2015-2016, Petr Zemek <s3rvac@gmail.com> and contributors'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -102,11 +102,6 @@ modindex_common_prefix = ['retdec.']
 # Order the functions in the documentation in the order they are defined in the
 # source code.
 autodoc_member_order = 'bysource'
-
-# Insert the both the docstring of a class and its __init__() method in the
-# generated description of the class. By default, only the class docstring is
-# used, so the description of the __init__() parameters would not be generated.
-autoclass_content = 'both'
 
 
 # -- Options for HTML output ----------------------------------------------

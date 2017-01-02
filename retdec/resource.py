@@ -1,6 +1,6 @@
 #
 # Project:   retdec-python
-# Copyright: (c) 2015 by Petr Zemek <s3rvac@gmail.com> and contributors
+# Copyright: (c) 2015-2016 by Petr Zemek <s3rvac@gmail.com> and contributors
 # License:   MIT, see the LICENSE file for more details
 #
 
@@ -14,17 +14,17 @@ import time
 
 
 class Resource:
-    """Base class of all resources."""
+    """Base class of all resources.
+
+    :param str id: Unique identifier of the resource.
+    :param retdec.conn.APIConnection conn: Connection to the API to be used for
+        sending API requests.
+    """
 
     #: Time interval after which we can update resource's state.
     _STATE_UPDATE_INTERVAL = datetime.timedelta(seconds=0.5)
 
     def __init__(self, id, conn):
-        """
-        :param str id: Unique identifier of the resource.
-        :param retdec.conn.APIConnection conn: Connection to the API to be used
-                                               for sending API requests.
-        """
         self._id = id
         self._conn = conn
 
@@ -115,19 +115,18 @@ class Resource:
         """Obtains and returns the current status of the resource."""
         return self._conn.send_get_request('/{}/status'.format(self.id))
 
-    def _handle_failure(self, on_failure, error):
+    def _handle_failure(self, on_failure, *args):
         """Handles the situation where a resource failed to succeed.
 
         :param callable on_failure: What should be done when the resource
-                                    failed?
-        :param str error: Error message.
+            failed?
 
         If `on_failure` is ``None``, nothing is done when the resource failed.
-        Otherwise, it is called with `error`. If the returned value is an
+        Otherwise, it is called with `*args`. If the returned value is an
         exception, it is raised.
         """
         if on_failure is not None:
-            obj = on_failure(error)
+            obj = on_failure(*args)
             if isinstance(obj, Exception):
                 raise obj
 
@@ -143,7 +142,7 @@ class Resource:
                 contents = contents.decode()
             return contents
 
-    def _get_file_and_save_it_to(self, file_path, directory=None):
+    def _get_file_and_save_it(self, file_path, directory=None):
         """Obtains a file from `file_path` and saves it to `directory`.
 
         :param str file_path: Path to the file to be downloaded.

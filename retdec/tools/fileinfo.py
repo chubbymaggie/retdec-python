@@ -1,6 +1,6 @@
 #
 # Project:   retdec-python
-# Copyright: (c) 2015 by Petr Zemek <s3rvac@gmail.com> and contributors
+# Copyright: (c) 2015-2016 by Petr Zemek <s3rvac@gmail.com> and contributors
 # License:   MIT, see the LICENSE file for more details
 #
 
@@ -28,13 +28,22 @@ def parse_args(argv):
     parser.add_argument(
         'input_file',
         metavar='FILE',
-        help='file to analyze'
+        help='File to analyze.'
+    )
+    parser.add_argument(
+        '-f', '--output-format',
+        dest='output_format',
+        metavar='FORMAT',
+        choices=['plain', 'json'],
+        default='plain',
+        help='Format of the output from the analysis. '
+             'Choices: %(choices)s. Default: %(default)s.'
     )
     parser.add_argument(
         '-v', '--verbose',
         dest='verbose',
         action='store_true',
-        help='print all available information about the file'
+        help='Print all available information about the file.'
     )
     return parser.parse_args(argv[1:])
 
@@ -53,6 +62,7 @@ def main(argv=None):
     )
     analysis = fileinfo.start_analysis(
         input_file=args.input_file,
+        output_format=args.output_format,
         verbose=args.verbose
     )
     analysis.wait_until_finished()
